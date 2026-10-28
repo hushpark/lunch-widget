@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>급식 지도 담당</title>
+
+    <!-- 💡 PWA 앱 아이콘 & 단독 앱 동작 설정 -->
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="급식지도" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#059669" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="bg-slate-100 p-4 flex justify-center items-center min-h-screen">
+
+    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-lg w-full max-w-sm space-y-4">
+        <!-- 헤더 -->
+        <div class="flex justify-between items-center border-b border-slate-100 pb-2.5">
+            <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                <span class="text-emerald-600 font-bold">🍱</span> 오늘의 급식 지도 담당
+            </h4>
+        </div>
+
+        <!-- 1. 오늘의 담당 교사 카드 -->
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+            <div
+                class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 font-bold text-xl">
+                👤
+            </div>
+            <div>
+                <span id="todayDateLabel" class="text-[11px] font-bold text-emerald-700 block">TODAY</span>
+                <span id="todayTeacherName" class="text-lg font-black text-slate-900">불러오는 중...</span>
+            </div>
+        </div>
+
+        <!-- 2. 주간 일정 (이번 주 / 다음 주 탭) -->
+        <div class="space-y-2 pt-1">
+            <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                    📅 급식 지도 일정
+                </span>
+
+                <div
+                    class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px] font-bold">
+                    <button id="btnThisWeek" onclick="switchTab('thisWeek')"
+                        class="px-2.5 py-1 rounded-md bg-white text-emerald-700 shadow-xs font-black">이번 주</button>
+                    <button id="btnNextWeek" onclick="switchTab('nextWeek')"
+                        class="px-2.5 py-1 rounded-md text-slate-500">다음 주</button>
+                </div>
+            </div>
+
+            <!-- 일정 리스트 -->
+            <div id="scheduleList" class="space-y-1.5 min-h-[175px]">
+                <div class="text-center py-8 text-xs text-slate-400">데이터를 로딩하고 있습니다...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 💡 사용 중이신 Supabase URL과 ANON_KEY 정보로 채워주시면 됩니다.
+        const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let allSchedules = [];
+        let currentTab = 'thisWeek';
+
+        const getTodayStr = () => {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+
+        const formatTeacherName = (rawName) => {
+            const name = (rawName || '').trim();
+            if (!name) return '지정 휴일';
+            if (name.includes('휴일') || name.includes('방학') || name.includes('시험')) return name;
+            if (name.endsWith('선생님') || name.endsWith('교사')) return name;
+            return `${name} 선생님`;
+        };
+
+        async function fetchSchedules() {
+            const todayStr = getTodayStr();
+            document.getElementById('todayDateLabel').innerText = `TODAY (${todayStr})`;
+
+            const { data, error } = await supabaseClient
+                .from('lunch_schedules')
+                .select('*')
+                .order('date', { ascending: true });
+
+            if (!error && data) {
+                allSchedules = data;
+
+                const todayItem = data.find(item => item.date === todayStr);
+                document.getElementById('todayTeacherName').innerText = formatTeacherName(todayItem ? todayItem.teacher_name : '담당자 없음');
+
+                renderList();
+            } else {
+                document.getElementById('scheduleList').innerHTML = `<div class="text-center py-8 text-xs text-rose-500">일정을 불러오지 못했습니다.</div>`;
+            }
+        }
+
+        function renderList() {
+            const todayStr = getTodayStr();
+            const baseDate = new Date();
+            const day = baseDate.getDay();
+            const diffToMonday = day === 0 ? -6 : 1 - day;
+
+            const thisMonday = new Date(baseDate);
+            thisMonday.setDate(baseDate.getDate() + diffToMonday);
+
+            const targetMonday = new Date(thisMonday);
+            if (currentTab === 'nextWeek') targetMonday.setDate(thisMonday.getDate() + 7);
+
+            const targetFriday = new Date(targetMonday);
+            targetFriday.setDate(targetMonday.getDate() + 4);
+
+            const formatDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const start = formatDateStr(targetMonday);
+            const end = formatDateStr(targetFriday);
+
+            const filtered = allSchedules.filter(item => item.date >= start && item.date <= end);
+            const days = ['일', '월', '화', '수', '목', '금', '토'];
+
+            const html = filtered.map(item => {
+                const isToday = item.date === todayStr;
+                const dObj = new Date(item.date);
+                const dayName = days[dObj.getDay()];
+
+                return `
+          <div class="flex justify-between items-center px-3 py-2 rounded-lg text-xs border ${isToday ? 'bg-emerald-100/80 border-emerald-300 font-bold text-emerald-900' : 'bg-slate-50 border-slate-100 text-slate-700'}">
+            <span class="font-mono text-[11px]">${item.date} (${dayName})</span>
+            <span class="font-bold">${formatTeacherName(item.teacher_name)}</span>
+          </div>
+        `;
+            }).join('');
+
+            document.getElementById('scheduleList').innerHTML = html || '<div class="text-center py-8 text-xs text-slate-400">등록된 일정이 없습니다.</div>';
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            if (tab === 'thisWeek') {
+                document.getElementById('btnThisWeek').className = "px-2.5 py-1 rounded-md bg-white text-emerald-700 shadow-xs font-black";
+                document.getElementById('btnNextWeek').className = "px-2.5 py-1 rounded-md text-slate-500";
+            } else {
+                document.getElementById('btnNextWeek').className = "px-2.5 py-1 rounded-md bg-white text-emerald-700 shadow-xs font-black";
+                document.getElementById('btnThisWeek').className = "px-2.5 py-1 rounded-md text-slate-500";
+            }
+            renderList();
+        }
+
+        fetchSchedules();
+    </script>
+</body>
+
+</html>
