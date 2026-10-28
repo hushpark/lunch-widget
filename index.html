@@ -65,9 +65,9 @@
     </div>
 
     <script>
-        // 💡 사용 중이신 Supabase URL과 ANON_KEY 정보로 채워주시면 됩니다.
-        const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        // 💡 [수정 포인트] 아래 두 줄의 따옴표 안에 Supabase Dashboard ➔ Settings ➔ API에서 복사한 진짜 값을 넣으세요!
+        const SUPABASE_URL = 'https://udxxjoyurdtdlbcbisgw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkeHhqb3l1cmR0ZGxiY2Jpc2d3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNjM0NzYsImV4cCI6MjEwMDgzOTQ3Nn0.KNb2qYnyCrnj8_Ml5d_8lhAt5ux3F1sNlbUhdjXJ6K4';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let allSchedules = [];
